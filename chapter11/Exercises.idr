@@ -77,7 +77,7 @@ data InfIO : Type where
 (>>=) : IO a -> (a -> Inf InfIO) -> InfIO
 (>>=) = Do
 
-data Fuel = Dry | More Fuel
+data Fuel = Dry | More (Lazy Fuel)
 
 tank : Nat -> Fuel
 tank Z = Dry
@@ -99,6 +99,35 @@ run : Fuel -> InfIO -> IO ()
 run Dry _ = putStrLn "Out of fuel"
 run (More fuel) (Do action cont) = do res <- action
                                       run fuel (cont res)
+
+greetInf : InfIO
+greetInf = do putStr "Enter your name: "
+              name <- getLine
+              putStrLn ("Hello " ++ name)
+              greetInf
+
+namespace RunIO
+  data RunIO : Type -> Type where
+    Quit : a -> RunIO a
+    Do : IO a -> (a -> Inf (RunIO b)) -> RunIO b
+
+  (>>=) : IO a -> (a -> Inf (RunIO b)) -> RunIO b
+  (>>=) = Do
+
+  run : Fuel -> RunIO a -> IO (Maybe a)
+  run fuel (Quit value) = pure (Just value)
+  run Dry _ = pure Nothing
+  run (More fuel) (Do cmd f) = do res <- cmd
+                                  run fuel (f res)
+
+greet : RunIO ()
+greet = do putStr "Enter your name: "
+           name <- getLine
+           if name == ""
+              then do putStrLn "Bye bye!"
+                      Quit ()
+              else do putStrLn ("Hello " ++ name)
+                      greet
 
 totalRepl : (prompt : String) -> (action : String -> String) -> InfIO
 totalRepl prompt action = do putStr prompt
