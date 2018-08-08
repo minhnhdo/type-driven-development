@@ -5,6 +5,9 @@ import Data.List.Views
 import Data.Nat.Views
 import Data.Vect.Views
 
+import DataStore
+import Shape
+
 data ListLast : List a -> Type where
   Empty : ListLast []
   NonEmpty : (xs : List a) -> (x : a) -> ListLast (xs ++ [x])
@@ -108,3 +111,41 @@ palindrome xs with (vList xs)
   palindrome (x :: (ys ++ [y])) | (VCons rec) = if x == y
                                                    then palindrome ys | rec
                                                    else False
+
+testStore : DataStore (SString .+. SString .+. SInt)
+testStore = addToStore ("Mercury", "Mariner 10", 1974) $
+            addToStore ("Venus", "Venera", 1961) $
+            addToStore ("Uranus", "Voyager 2", 1986) $
+            addToStore ("Pluto", "New Horizons", 2016) $
+            empty
+
+testStore2 : DataStore (SString .+. SInt)
+testStore2 = addToStore ("First", 1) $
+             addToStore ("Second", 2) $
+             empty
+
+listItems : DataStore schema -> List (SchemaType schema)
+listItems store with (storeView store)
+  listItems empty | SNil = []
+  listItems (addToStore value store) | (SAdd rec) =
+    value :: listItems store | rec
+
+filterKeys : (test : SchemaType val_schema -> Bool) ->
+             DataStore (SString .+. val_schema) -> List String
+filterKeys test store with (storeView store)
+  filterKeys _ empty | SNil = []
+  filterKeys test (addToStore (k, v) store) | (SAdd rec) =
+    if test v
+       then k :: filterKeys test store | rec
+       else filterKeys test store | rec
+
+getValues : DataStore (SString .+. val_schema) -> List (SchemaType val_schema)
+getValues store with (storeView store)
+  getValues empty | SNil = []
+  getValues (addToStore (_, v) store) | (SAdd rec) = v :: getValues store | rec
+
+area : Shape -> Double
+area s with (shapeView s)
+  area (triangle base height) | STriangle = 0.5 * base * height
+  area (rectangle width height) | SRectangle = width * height
+  area (circle radius) | SCircle = pi * radius * radius
